@@ -114,6 +114,7 @@ impl App {
                         CurrentScreen::Delete => {
                             let cur_monitor_name = &return_all_monitors()[self.cur_selection].name;
                             delete_monitor(cur_monitor_name);
+                            self.cur_screen = CurrentScreen::View1; // resets the screen 
                         },
                         _ => {}
                     }

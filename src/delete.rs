@@ -7,13 +7,12 @@ use crate::jobs::{Job, JobFile};
 
 pub fn delete_monitor(name: &str) {
     if check_if_monitorname_taken(name) {
-        println!("-- Delete");
+        //println!("-- Delete");
         // ASK YES OR NO STATEMENT IF USER WANTS TO DELETE
-        println!("Are you certain that you want to delete this monitor? (Y)");
-        let mut input = String::new();
-        std::io::stdin().read_line(&mut input).expect("Failed to read line");
+        //println!("Are you certain that you want to delete this monitor? (Y)");
+        //let mut input = String::new();
+        let input = "Y";
         if input.trim() == "Y" {
-            println!("deleting...");
             //delete from monitors.toml
             let contents = match fs::read_to_string("monitors.toml") { // put the the fs read function thru a switch statement as an io check...
                 Ok(content) => content, // if can read, set contets as contents, 

@@ -1,0 +1,55 @@
+
+TO DO
+
+add view 2 stuff 
+
+make view 1 and view 2 border not white and change colour depending on status?
+same with status text ie running = green, stopped = red ....
+
+add a 'last updated : time ' text to the bottom of screen view 1 
+
+need to add a line buffer on the bottom of view 1 otherwise can select a monitor not on screen and it wont show 
+
+make it so up and down arrows dont do anything while not in view 1 or 2 
+
+add gruops so can toggle between all - ungrouped - groups 1- >>>> with left and right arrows 
+
+make status bar prettier. ...
+
+make it so running gtop add automatically adds a minotr based off used defined settings
+
+add setting tui in monitor + teminal stuff 
+
+
+
+
+
+
+
+
+
+
+
+
+
+add a monitor after running the sub script wnt work since the prod deffnm doesnt exist yet ---- need to add a way to add a monitor monitor (monitorthe current dir until the deffnm exists, monitoring status)
+
+edit functionality
+
+make it such that the order of moniotrs in the monitor thing isnt based off monitors.toml but based off some other order array much easier to work with
+
+get rid of ssh address from monitor, only use local
+
+add verbosity flags to list, with default being just name, -v being +ssh,pwd,deffnm, -vv +timeadded, ...
+
+make the get-stopped-job-curstep uniform
+
+transfer all the functions associated to monitors into the monitors.rs, same with jobs 
+ + make a new Monitor and new Job func and replace in create 
+
+ create two arrays, one for time_spent_per_last_update and one for steps_since_last_updates
+ make fixed length (ie 10) which fills up and new entries remove the oldest values
+
+ add restart command
+
+ CURRENTLY checkpoint sub script doesnt have to exist, unless called upon by restart command

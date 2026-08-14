@@ -1,0 +1,27 @@
+[[monitors]]
+name = "monitor1"
+ssh_address = "@"
+work_dir = "/home/alex/PHD/JOBMONITOR/tests/md1_ongoing/"
+deffnm = "5.prod"
+checkpoint_sub = "asd"
+
+[[monitors]]
+name = "monitor2"
+ssh_address = "@"
+work_dir = "/home/alex/PHD/JOBMONITOR/tests/md2_finished/"
+deffnm = "5.prod"
+checkpoint_sub = "asd"
+
+[[monitors]]
+name = "monitor3"
+ssh_address = "@"
+work_dir = "/home/alex/PHD/JOBMONITOR/tests/md3_needsrestart/"
+deffnm = "5.prod"
+checkpoint_sub = "asd"
+
+[[monitors]]
+name = "monitor4"
+ssh_address = "@"
+work_dir = "/home/alex/PHD/JOBMONITOR/tests/md4_waiting/"
+deffnm = "5.prod"
+checkpoint_sub = "asd"

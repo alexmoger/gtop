@@ -17,7 +17,7 @@ use std::time::{Duration, Instant};
 
 use crate::monitors::Monitor;
 use crate::monitors::{return_all_monitors, find_monitor};
-use crate::aux::return_all_jobs;
+use crate::aux_xua::return_all_jobs;
 use crate::jobs::{Job, JobFile, Status, find_job};
 use crate::get::update_monitor;
 use crate::delete::delete_monitor;

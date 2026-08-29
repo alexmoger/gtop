@@ -5,7 +5,7 @@
 use crate::monitors::{Monitor, MonitorFile};
 use std::process::{Command, Stdio};
 use crate::jobs::{Job, JobFile, Status};
-use crate::aux::{find_job, test_local_address};
+use crate::aux_xua::{find_job, test_local_address};
 use std::fs;
 use chrono;
 

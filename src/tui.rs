@@ -1,6 +1,6 @@
 
 use crate::monitors::return_all_monitors;
-use crate::aux::find_job;
+use crate::aux_xua::find_job;
 use crate::monitors::Monitor;
 use crate::get::update_monitor;
 

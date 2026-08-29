@@ -2,7 +2,7 @@ use clap::{Parser, Subcommand};
 use std::io;
 use std::time::{Duration, Instant};
 
-mod aux;
+mod aux_xua;
 mod monitors;
 mod create;
 mod delete;

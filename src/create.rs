@@ -1,5 +1,5 @@
-use crate::aux::test_ssh_connection;
-use crate::aux::{test_local_address, check_if_dir_exists };
+use crate::aux_xua::test_ssh_connection;
+use crate::aux_xua::{test_local_address, check_if_dir_exists };
 use serde::{Serialize, Deserialize};
 use std::fs;
 

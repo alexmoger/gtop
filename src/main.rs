@@ -13,16 +13,17 @@ mod tui;
 mod restart;
 mod edit;
 mod app;
+mod groups;
 
 use create::create_monitor;
 use delete::delete_monitor;
 use list::list_monitors;
 use get::update_monitor;
-use aux::find_monitor;
-use aux::return_all_monitors;
 use tui::debug_monitor;
 use restart::restart_monitor;
 use edit::edit_monitor;
+use groups::{create_group, delete_group};
+use monitors::{find_monitor, add_monitor_to_group, return_all_monitors};
 
 use crate::monitors::Monitor;
 use crate::app::App;
@@ -56,7 +57,7 @@ enum Commands {
         ssh_address: String,
         work_dir: String,
         deffnm: String,
-        checkpoint_sub: String
+        checkpoint_sub: String,
     },
     // delete monitor
     // takes flag: -n name
@@ -83,7 +84,17 @@ enum Commands {
         feature: String,
         new_entry: String
     },
-    Monitor {}
+    Monitor {},
+    New_Group {
+        name: String,
+    },
+    Delete_Group {
+        name: String
+    },
+    Add_To_Group {
+        monitorname: String,
+        groupname: String,
+    },
 }
 
 fn main() {
@@ -93,7 +104,7 @@ fn main() {
     // this enables cli function instead of tui function
     let args = Args::parse();
     match args.cmd{ // switch statement...
-        Commands::Create { name, ssh_address, work_dir, deffnm, checkpoint_sub } => { // if create command...
+        Commands::Create { name, ssh_address, work_dir, deffnm, checkpoint_sub} => { // if create command...
             create_monitor(&name, &ssh_address, &work_dir, &deffnm, &checkpoint_sub); // run create monitor func from create.rs
         
         }
@@ -114,6 +125,9 @@ fn main() {
         Commands::Restart { name } => { restart_monitor(name); }
         Commands::Edit { name, feature, new_entry } => { edit_monitor(name, feature, new_entry); }
         Commands::Monitor {} => { run_tui_monitor(); }
+        Commands::New_Group {name} => { create_group(&name); }
+        Commands::Delete_Group {name} => { delete_group(&name); }
+        Commands::Add_To_Group {monitorname, groupname} => { add_monitor_to_group(&monitorname, &groupname); }
     }
 }
 
@@ -127,6 +141,7 @@ fn run_tui_monitor() -> io::Result<()> {
         offset: 0,
         tick_rate: Duration::from_secs(5),
         last_tick: Instant::now(),
+        cur_group_id: 4,
     };
        let app_result = app.run(&mut terminal);
 

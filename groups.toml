@@ -1,0 +1,11 @@
+[[groups]]
+name = "group1"
+length = "0"
+id = "1"
+monitor_names = []
+
+[[groups]]
+name = "group2"
+length = "0"
+id = "2"
+monitor_names = []

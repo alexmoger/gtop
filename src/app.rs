@@ -12,15 +12,16 @@ use ratatui::{
     DefaultTerminal, Frame,
     layout::{Constraint, Direction, Layout},
 };
-use std::io;
+use std::{fmt::format, io};
 use std::time::{Duration, Instant};
 
 use crate::monitors::Monitor;
-use crate::aux::return_all_monitors;
+use crate::monitors::{return_all_monitors, find_monitor};
 use crate::aux::return_all_jobs;
-use crate::jobs::{Job, JobFile, Status};
+use crate::jobs::{Job, JobFile, Status, find_job};
 use crate::get::update_monitor;
 use crate::delete::delete_monitor;
+use crate::groups::return_all_groups;
 
 #[derive(Debug, Default)]
 pub enum CurrentScreen {
@@ -39,6 +40,7 @@ pub struct App {
     pub offset: usize,
     pub tick_rate: Duration, // how often the tui allows an update
     pub last_tick: Instant, // last tick
+    pub cur_group_id: usize, // group id 0 = all, 1 = unassigned, 2->N = groupsform groups.toml
 }
 
 impl App {
@@ -160,6 +162,25 @@ impl App {
                         _ => {}
                     }
                 },
+                KeyCode::Right => {
+                    match self.cur_screen {
+                        CurrentScreen::View1 => {
+                            let n_groups = return_all_groups().len(); // get number of groups in groups.toml also prob shit
+                            if self.cur_group_id + 1 < ( n_groups + 5 ) { // n groups + 2 since 0 -> 4 is taken by preset groups 
+                                self.cur_group_id += 1;
+                            }
+                        },
+                        _ => {}
+                    }
+                }
+                KeyCode::Left => {
+                    match self.cur_screen {
+                        CurrentScreen::View1 => {
+                            self.cur_group_id = self.cur_group_id.saturating_sub(1);
+                        },
+                        _ => {}
+                    }
+                }
                 _ => {},
             }
         }
@@ -169,9 +190,62 @@ impl App {
 
 // functions for RENDERING each screen defining the content
 // MAIN SCREEN CONTIANING LIST OF MONITORS + BASIC INFO
-fn screen_view1(area: Rect, buf: &mut Buffer, cur_sel : &usize, cur_offset: &usize) { // 'static defines the lifetime ie lives for the entire program duration
+fn screen_view1(area: Rect, buf: &mut Buffer, cur_sel : &usize, cur_offset: &usize, cur_group_id: &usize) { // 'static defines the lifetime ie lives for the entire program duration
     let monitors: Vec<Monitor> = return_all_monitors(); // gets all monitors from monitor.toml
     let jobs: Vec<Job> = return_all_jobs();
+    // this stuff is for etting all monitors with the current group selection
+    let groups = return_all_groups();
+    let mut cur_group_name = "";
+    match cur_group_id {
+        0 => cur_group_name = "Finished",
+        1 => cur_group_name = "Paused", 
+        2 => cur_group_name = "Running",
+        3 => cur_group_name = "", // unassigned groups have the name ""
+        4 => cur_group_name = "All", 
+        _ => cur_group_name = &groups[cur_group_id - 5].name,
+    }
+    let mut monitors_in_group = Vec::<Monitor>::new(); // htis new shit is needed for below push to work 
+    match cur_group_name {
+        "Finished" => {
+            let jobs_to_show : Vec<&Job> = jobs.iter() // gets all jobs with finished status to find monitors
+                .filter(|j| j.status == Status::Finished)
+                .collect();
+            for job in jobs_to_show { // find monitors with finihed status 
+                monitors_in_group.push(find_monitor(job.name.clone()));
+            }
+        },
+        "Paused" => {
+            let jobs_to_show : Vec<&Job> = jobs.iter() // gets all jobs with finished status to find monitors
+                .filter(|j| j.status == Status::Paused)
+                .collect();
+            for job in jobs_to_show { // find monitors with finihed status 
+                monitors_in_group.push(find_monitor(job.name.clone()));
+            }
+        },
+        "Running" => {
+            let jobs_to_show : Vec<&Job> = jobs.iter() // gets all jobs with finished status to find monitors
+                .filter(|j| j.status == Status::Running)
+                .collect();
+            for job in jobs_to_show { // find monitors with finihed status 
+                monitors_in_group.push(find_monitor(job.name.clone()));
+            }
+        },
+        "All" => {
+            monitors_in_group = monitors.into_iter().collect();
+        }, // idk if tihs collect shit is the best way to do it but it works !
+        _ => {
+            monitors_in_group = monitors
+                .into_iter() // into inter instead of just iter to collect as Vec<Monitor> instead of <&Monitor> idk copied from substack
+                .filter(|m| m.group_name == cur_group_name)
+                .collect();
+        },
+    }   
+    let jobs_in_group : Vec<Job> = monitors_in_group // gt all jobs corresponding to monitors in gorup
+        .iter()
+        .map(|m| find_job(m.name.clone()))
+        .collect();
+    let monitors = monitors_in_group; // redefine monitors here 
+    let jobs = jobs_in_group; //redefine jobs here    
 
     // RENDER STUFF
     let monitor_chunk_size: u16 = 5; // number of lines for each monitor
@@ -395,21 +469,32 @@ impl Widget for &App { // uses reference since render doesnt edit anything
                 " Restart ".into(),
                 "<r> ".blue().bold(),
             ]);
+
+            let groups = return_all_groups();
+            let mut group_name = "";
+            match self.cur_group_id {
+                0 => group_name = "Finished",
+                1 => group_name = "Paused", 
+                2 => group_name = "Running",
+                3 => group_name = "Unassigned", // unassigned groups have the name ""
+                4 => group_name = "All", 
+                _ => group_name = &groups[self.cur_group_id - 5].name,
+            }
             // sets frame around tui 
             let block = Block::bordered() // frame around area
                 .title(Line::from(" == gtop == ").centered())
+                .title(Line::from(format!(" < Group {} > ",  group_name)).left_aligned())
                 .title_bottom(instructions.centered())
                 .border_type(BorderType::Rounded)
                 .border_style(Style::new().fg(Color::Rgb(160,66,184)))
                 .border_set(border::THICK);
             let inner_area = block.inner(area);
-
             block.render(area,buf); // renders outer border
 
             // each function contains all the stuff to draw !!
             // takes in inner_area instead of area
             match self.cur_screen {
-                CurrentScreen::View1 => screen_view1(inner_area, buf, &self.cur_selection, &self.offset),
+                CurrentScreen::View1 => screen_view1(inner_area, buf, &self.cur_selection, &self.offset, &self.cur_group_id),
                 CurrentScreen::View2 => screen_view2(inner_area, buf),
                 CurrentScreen::Restart => screen_restart(inner_area, buf, &self.cur_selection),
                 CurrentScreen::Delete => screen_delete(inner_area, buf, &self.cur_selection),

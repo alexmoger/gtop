@@ -46,23 +46,6 @@ pub fn check_if_dir_exists(search: &str) -> bool {
     }
 }
 
-pub fn find_monitor(name: String) -> Monitor {
-    let contents = match std::fs::read_to_string("monitors.toml") { // put the the fs read function thru a switch statement as an io check...
-        Ok(content) => content, // if can read, set contets as contents, 
-        Err(_) => panic!("Failed to read monitors.toml"), // f the file doesn't exist, return false, end early
-    };
-    let data: MonitorFile = match toml::from_str(&contents) { // parse the contents of monitors.toml into a MonitorFile struct
-        Ok(data) => data, // if can parse, set data as the parsed data
-        Err(_) => panic!("Failed to parse monitors.toml"), // if can't parse, return false, end early
-    };
-    for monitor in data.monitors { // iterate over the monitors in the MonitorFile struct
-        if monitor.name == name { // if the monitor name matches the name passed to the function
-            return monitor; // return true, end early
-        }
-    }
-    panic!("Monitor not found: {}", name);
-}
-
 pub fn find_job(name: String) -> Job {
     let contents = match std::fs::read_to_string("jobs.toml") { // put the the fs read function thru a switch statement as an io check...
         Ok(content) => content, // if can read, set contets as contents, 
@@ -80,17 +63,6 @@ pub fn find_job(name: String) -> Job {
     panic!("Job not found: {}", name);
 }
 
-pub fn return_all_monitors() -> Vec<Monitor> {
-    let contents = match std::fs::read_to_string("monitors.toml") { // put the the fs read function thru a switch statement as an io check...
-        Ok(content) => content, // if can read, set contets as contents, 
-        Err(_) => panic!("Failed to read monitors.toml"), // f the file doesn't exist, return false, end early
-    };
-    let data: MonitorFile = match toml::from_str(&contents) { // parse the contents of monitors.toml into a MonitorFile struct
-        Ok(data) => data, // if can parse, set data as the parsed data
-        Err(_) => panic!("Failed to parse monitors.toml"), // if can't parse, return false, end early
-    };
-    return data.monitors; // return all monitors
-}
 pub fn return_all_jobs() -> Vec<Job> {
     let contents = match std::fs::read_to_string("jobs.toml") { // put the the fs read function thru a switch statement as an io check...
         Ok(content) => content, // if can read, set contets as contents, 

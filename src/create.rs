@@ -34,7 +34,8 @@ pub fn create_monitor(name: &str, ssh_address: &str, work_dir: &str, deffnm: &st
                 ssh_address: ssh_address.to_string(),
                 work_dir: work_dir.to_string(),
                 deffnm: deffnm.to_string(),
-                checkpoint_sub: checkpoint_sub.to_string()
+                checkpoint_sub: checkpoint_sub.to_string(),
+                group_name: "".to_string(),
             };
             save_monitor_credentials(&new_monitor); // save monitor credentials to /gtop/monitors/name.toml
             save_job_credentials(name);
@@ -49,6 +50,7 @@ pub fn create_monitor(name: &str, ssh_address: &str, work_dir: &str, deffnm: &st
                 work_dir: work_dir.to_string(),
                 deffnm: deffnm.to_string(),
                 checkpoint_sub: checkpoint_sub.to_string(),
+                group_name: "".to_string()
             };
             save_monitor_credentials(&new_monitor); // save monitor credentials to /gtop/monitors/name.toml
             save_job_credentials(name);

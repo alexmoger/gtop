@@ -3,7 +3,7 @@ use crate::monitors::{Monitor, MonitorFile};
 use crate::aux::test_local_address;
 use std::process::{Command, Stdio};
 use crate::jobs::{Job, JobFile};
-use crate::aux::find_monitor;
+use crate::monitors::find_monitor;
 use std::fs;
 use chrono;
 

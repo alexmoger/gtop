@@ -1,4 +1,4 @@
-use crate::aux::find_monitor;
+use crate::monitors::find_monitor;
 use crate::delete::delete_monitor;
 use crate::create::create_monitor;
 use crate::create::check_if_monitorname_taken;
@@ -21,5 +21,5 @@ pub fn edit_monitor(name: String, feature: String, new_entry: String) {
     // check if new monitor has correct values (deffnm exists? pwd exists)
     // deletes old monitor
     // add edited monitor
-    create_monitor(&monitor.name, &monitor.ssh_address, &monitor.work_dir, &monitor.deffnm, &monitor.checkpoint_sub);
+    //create_monitor(&monitor.name, &monitor.ssh_address, &monitor.work_dir, &monitor.deffnm, &monitor.checkpoint_sub, &group_name);
 }

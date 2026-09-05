@@ -1,0 +1,4 @@
+[[settings]]
+default_deffnm = "prod"
+default_checkpointsub = "checkpoint_sub.sh"
+default_monitorname = "monitor"

@@ -3,9 +3,9 @@
 // each command sshs into the pwd and gets deffnm.log or .mdp or whatever to get data
 
 use crate::monitors::{Monitor, MonitorFile};
+use crate::create::test_local_address;
 use std::process::{Command, Stdio};
-use crate::jobs::{Job, JobFile, Status};
-use crate::aux_xua::{find_job, test_local_address};
+use crate::jobs::{Job, JobFile, Status, find_job, return_jobs_toml};
 use std::fs;
 use chrono;
 
@@ -19,10 +19,9 @@ pub fn update_monitor(monitors: &Vec<Monitor>) {
         // update prev step before assigned new cur_step 
         cur_job.last_step = cur_job.cur_step.clone(); 
 
-        let files = get_files(monitor); // vec of [cat md][tail -n10 log | head -n 1][du -sh .xtc]
+        let files = get_files(monitor); // vec of [mdp contents][log 10th last line]
         let max_steps = get_max_steps(files[0].clone()); // gets max steps from mdp file
         let timestep = get_timestep(files[0].clone()); // gets timestep from mdp file
-        let dir_size = get_dir_size(files[2].clone()); // extracts just the size from du output
         
         // CUR STEP STUFFS
         let mut cur_step = get_cur_step(files[1].clone()); // gets current step from log file, just the string from the log file line
@@ -57,7 +56,6 @@ pub fn update_monitor(monitors: &Vec<Monitor>) {
         cur_job.max_step = max_steps; // update the job struct with the new max steps
         cur_job.cur_step = cur_step; // update the job struct with the new current step
         cur_job.time_step = timestep; // update the job struct with the new timestep
-        cur_job.dir_size = dir_size; // update the job struct with the new directory size
         cur_job.last_updated = chrono::Local::now().to_rfc3339(); // update the job struct with the new last updated time
     
         update_job(&cur_job); // update the job struct in jobs.toml
@@ -66,7 +64,7 @@ pub fn update_monitor(monitors: &Vec<Monitor>) {
 
 fn update_job(job: &Job) {
     // loads jobs.toml
-    let mut data = match fs::read_to_string("jobs.toml") {
+    let mut data = match fs::read_to_string(return_jobs_toml()) {
         Ok(content) => toml::from_str::<JobFile>(content.as_str()).unwrap_or_default(), // If the file exists, parse it into a JobFile struct
         Err(_) => JobFile::default(), // If the file doesn't exist, start with default [[jobs]] structure
     };
@@ -79,47 +77,34 @@ fn update_job(job: &Job) {
     }
 
     let toml_string = toml::to_string_pretty(&data).unwrap();
-    fs::write("jobs.toml", toml_string).unwrap();
+    fs::write(return_jobs_toml(), toml_string).unwrap();
 }
 
 
 // GET FILES 
-// returns the contents of the [[mdp],[log]][du -sh .xtc] as String s 
+// takes a monitor and returns a vector of strings (contents of each file processed in this function)
 pub fn get_files(monitor: &Monitor) -> Vec<String> {
-    let filenames = format!( // list of commands to run
-        "cat {}/{}.mdp; echo '\nSEP\n'; tail -n10 {}/{}.log | head -n 1; echo '\nSEP\n'; du -sh {}", // just add with \nSEP\n for more file types
-        monitor.work_dir, monitor.deffnm, // mdp
-        monitor.work_dir, monitor.deffnm,  // log
-        monitor.work_dir                   // dir size 
-    );
+    // gets whole mdp contents
+    let mdp_path = format!("{}/{}.mdp", monitor.work_dir, monitor.deffnm); //  path/to/deffnm.mdp
+    let mdp_contents = fs::read_to_string(&mdp_path).unwrap_or_else(|_| panic!("error: cant't find [{}: {}]", monitor.name, mdp_path)); // contents of deffnm.mdp << return 
 
-    if monitor.ssh_address == "@" { // if local job, no ssh just need to validate that sim files are present
-        let file = Command::new("sh")
-            .arg("-c")
-            .arg(filenames) // runs the filenames variable (cat ...)
-            .output();
-        let all_contents = String::from_utf8_lossy(&file.unwrap().stdout).into_owned(); // returns cat output as string 
+    // returns equivalent of tail -n 10 | head -n 1 on deffnm.log
+    let log_path = format!("{}/{}.log", monitor.work_dir, monitor.deffnm); //  path/to/deffnm.log
+    let log_contents = fs::read_to_string(&log_path).unwrap_or_else(|_| String::new()); // contents of deffnm.log
 
-        return all_contents
-            .split("\nSEP\n") // splits the string into an array of strings at the \nSEP\n
-            .map(|s| s.to_string()) // converts each &str to String
-            .collect(); // collects the strings + returns
+    let mut log_lines : Vec<&str>;
+    let mut log_step_line : String;
+    if log_contents.is_empty() {
+        log_lines = Vec::<&str>::new();
+        log_step_line = "".to_string();
     } else {
-        let file = Command::new("ssh")
-            .arg(monitor.ssh_address.clone())
-            .stdin(Stdio::inherit()) // for running an interactive ssh
-            //.stdout(Stdio::inherit()) 
-            .stderr(Stdio::inherit())
-            .arg(filenames) // runs the filenames variable (cat ...)
-            .output();
-        let all_contents = String::from_utf8_lossy(&file.unwrap().stdout).into_owned(); // returns cat output as string 
-
-        all_contents
-            .split("\nSEP\n") // splits the string into an array of strings at the \nSEP\n
-            .map(|s| s.to_string()) // converts each &str to String
-            .collect() // collects the strings + returns
+        log_lines = log_contents.lines().collect(); // gets vec of log file lines
+        log_step_line = log_lines[log_lines.len() - 10].to_string(); // gets line 10 from end (containing step in a running log file) << return 
     }
-    
+
+    // returns [mdp contents, log 10th last line]
+    let contents : Vec<String> = vec![mdp_contents, log_step_line]; // returns vec of strings [mdp contents, log step line]
+    return contents;
 }
 
 
@@ -167,19 +152,15 @@ fn get_cur_step(log_file: String) -> String {
 // returns cur step when job has finished / stopped running (jobstatus == false, cur_step no longer on last line 4 or 5)
 // TODO <<< make this the genreal way to get stuff, not the tail -n5 | head- n 1 method as above its too sloppy
 fn get_stopped_job_step(monitor: &Monitor) -> String { // this is messy as hell
-    // get tail -n 500
-    let file = Command::new("sh")
-        .arg("-c")
-        .arg(format!("tail -n 500 {}/{}.log", monitor.work_dir, monitor.deffnm)) // runs tail -n500 workdir/deffnm.log
-        .output();
-    let all_contents = String::from_utf8_lossy(&file.unwrap().stdout).into_owned(); // returns cat output as string 
-    let lines = all_contents
-        .split("\n") // splits the string into an array of strings at the \n
-        .collect::<Vec<_>>();
+    let log_path = format!("{}/{}.log", monitor.work_dir, monitor.deffnm); //   path/to/deffnm.log
+    let log_contents = fs::read_to_string(&log_path).unwrap_or_else(|_| panic!("no log file found")); // contents of deffnm.log
+    let log_lines : Vec<&str> = log_contents.lines().collect(); // gets vec of log file lines
+    let log_last_500_lines  = log_lines[(log_lines.len().saturating_sub(500))..].to_vec();
+
     // save index of each line with a Step 
     let mut step_indices : Vec<i32> = Vec::new(); // indices containing a step (index of lines contain("step") + 1)
-    for i in 0..lines.len() { // iterate thru 0->length of lines
-        if lines[i].contains("Step") { // if it contains "Step"...
+    for i in 0..log_last_500_lines.len() { // iterate thru 0->length of lines
+        if log_last_500_lines[i].contains("Step") { // if it contains "Step"...
             let step_index : i32 = <usize as TryInto<i32>>::try_into(i).unwrap() + 1; // no idea how this works the compiler said to use it \o/
             step_indices.push(step_index); // push index of line containig "Step" + 1
         }
@@ -187,9 +168,9 @@ fn get_stopped_job_step(monitor: &Monitor) -> String { // this is messy as hell
     // get last index + 1
     let last_index = step_indices[step_indices.len() - 1];
     let mut last_line : &str = "";
-    for i in 0..lines.len() { // there has to be a better way to do this .........
+    for i in 0..log_last_500_lines.len() { // there has to be a better way to do this .........
         if <usize as TryInto<i32>>::try_into(i).unwrap() == last_index {
-            last_line = lines[i];
+            last_line = log_last_500_lines[i];
         }
     }
     // split + get step + return

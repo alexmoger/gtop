@@ -1,5 +1,6 @@
 use serde::{Serialize, Deserialize};
 use std::fs;
+use std::path::PathBuf;
 
 use crate::groups::check_if_group_name_taken;
 
@@ -7,7 +8,6 @@ use crate::groups::check_if_group_name_taken;
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct Monitor {
     pub name: String,
-    pub ssh_address: String,
     pub work_dir: String,
     pub deffnm: String,
     pub checkpoint_sub: String,
@@ -16,12 +16,17 @@ pub struct Monitor {
 // for saving multiple monitors to toml
 #[derive(Serialize, Deserialize, Default, Clone)]
 pub struct MonitorFile {
+    #[serde(default)] // returns a default vec when monitors.toml is empty
     pub monitors: Vec<Monitor>
 }
+pub fn return_monitors_toml() -> PathBuf {
+    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("monitors.toml")
+}
+
 
 // RETURNS A Vec<Monitor> OF ALL MONITORS IN monitors.toml
 pub fn return_all_monitors()  -> Vec<Monitor> {
-    let contents = match std::fs::read_to_string("monitors.toml") { // put the the fs read function thru a switch statement as an io check...
+    let contents = match fs::read_to_string(return_monitors_toml()) { // put the the fs read function thru a switch statement as an io check...
         Ok(content) => content, // if can read, set contets as contents, 
         Err(_) => panic!("Failed to read monitors.toml"), // f the file doesn't exist, return false, end early
     };
@@ -34,7 +39,7 @@ pub fn return_all_monitors()  -> Vec<Monitor> {
 // TAKES A MONITOR INPUT AND REPLACES THE SAME monitor.name IN monitors.toml 
 pub fn update_monitor(monitor: Monitor) {
     // loads monitors.toml
-    let mut data = match fs::read_to_string("monitors.toml") {
+    let mut data = match fs::read_to_string(return_monitors_toml()) {
         Ok(content) => toml::from_str::<MonitorFile>(content.as_str()).unwrap_or_default(), // If the file exists, parse it into a JobFile struct
         Err(_) => MonitorFile::default(), // If the file doesn't exist, start with default [[jobs]] structure
     };
@@ -50,7 +55,7 @@ pub fn update_monitor(monitor: Monitor) {
 }
 // RETURNS A Monitor GIVEN A MONITOR NAME
 pub fn find_monitor(name: String) -> Monitor {
-    let contents = match std::fs::read_to_string("monitors.toml") { // put the the fs read function thru a switch statement as an io check...
+    let contents = match std::fs::read_to_string(return_monitors_toml()) { // put the the fs read function thru a switch statement as an io check...
         Ok(content) => content, // if can read, set contets as contents, 
         Err(_) => panic!("Failed to read monitors.toml"), // f the file doesn't exist, return false, end early
     };

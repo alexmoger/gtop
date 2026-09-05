@@ -16,7 +16,6 @@ pub fn list_monitors() {
     for monitor in data.monitors {
         println!("Name: {}", monitor.name);
         // PRINT STATUS
-        println!("SSH Address: {}", monitor.ssh_address);
         println!("Work Directory: {}", monitor.work_dir);
         println!("Definition File: {}", monitor.deffnm);
         println!("Checkpoint Script: {}", monitor.checkpoint_sub);

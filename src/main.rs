@@ -9,21 +9,21 @@ mod delete;
 mod list;
 mod get;
 mod jobs;
-mod tui;
 mod restart;
 mod edit;
 mod app;
 mod groups;
+mod settings;
 
-use create::create_monitor;
+use create::{create_monitor, create_monitors_from_parent};
 use delete::delete_monitor;
 use list::list_monitors;
 use get::update_monitor;
-use tui::debug_monitor;
 use restart::restart_monitor;
 use edit::edit_monitor;
 use groups::{create_group, delete_group};
 use monitors::{find_monitor, add_monitor_to_group, return_all_monitors};
+use settings::{Settings, load_settings};
 
 use crate::monitors::Monitor;
 use crate::app::App;
@@ -51,12 +51,28 @@ struct Args {
 #[derive(Subcommand, Debug)]
 enum Commands {
     // create monitor
-    // takes flags: -n name -a ssh-address -d work-dir -f deffnm
-    Create {
+    Add {
+        #[arg(short='n', long, default_value = "default")] // if left empty 
         name: String,
-        ssh_address: String,
+        #[arg(long, default_value = "cur_dir")]
         work_dir: String,
+        #[arg(long, default_value = "default")]
         deffnm: String,
+        #[arg(long,default_value = "default")]
+        checkpoint_sub: String,
+    },
+    Add_Parent {
+        #[arg(short='c', long, num_args = 1.., value_delimiter = ' ')] // space separated vector of all names of child directories to create monitors of 
+        children: Vec<String>,  
+        #[arg(short='g', long, default_value = "default")] // space separated vector of all child directories to create monitors of 
+        group: String,  
+        #[arg(short='n', long, default_value = "default")] // if left empty 
+        name: String,
+        #[arg(long, default_value = "cur_dir")]
+        work_dir: String,
+        #[arg(long, default_value = "default")]
+        deffnm: String,
+        #[arg(long,default_value = "default")]
         checkpoint_sub: String,
     },
     // delete monitor
@@ -71,10 +87,6 @@ enum Commands {
     Update{ 
         #[arg(default_value = "all")]
         name: String 
-    },
-    DebugMonitor {
-        #[arg(default_value= "10")] // default refresh every 5 mins
-        refresh_rate: u64
     },
     Restart {
         name: String
@@ -104,9 +116,11 @@ fn main() {
     // this enables cli function instead of tui function
     let args = Args::parse();
     match args.cmd{ // switch statement...
-        Commands::Create { name, ssh_address, work_dir, deffnm, checkpoint_sub} => { // if create command...
-            create_monitor(&name, &ssh_address, &work_dir, &deffnm, &checkpoint_sub); // run create monitor func from create.rs
-        
+        Commands::Add { name, work_dir, deffnm, checkpoint_sub} => { // if create command...
+            create_monitor(&name, &work_dir, &deffnm, &checkpoint_sub); // run create monitor func from create.rs
+        }
+        Commands::Add_Parent {children, group, name, work_dir, deffnm, checkpoint_sub} => {
+            create_monitors_from_parent(children, &group, &name, &work_dir, &deffnm, &checkpoint_sub);
         }
         Commands::Delete { name } => { // if delete command...
             delete_monitor(&name); // run delete monitor func from delete.rs
@@ -121,7 +135,6 @@ fn main() {
             }
             update_monitor(&monitor); // run update monitor func from get.rs
         }
-        Commands::DebugMonitor { refresh_rate } => { debug_monitor(refresh_rate); }
         Commands::Restart { name } => { restart_monitor(name); }
         Commands::Edit { name, feature, new_entry } => { edit_monitor(name, feature, new_entry); }
         Commands::Monitor {} => { run_tui_monitor(); }
@@ -142,6 +155,9 @@ fn run_tui_monitor() -> io::Result<()> {
         tick_rate: Duration::from_secs(5),
         last_tick: Instant::now(),
         cur_group_id: 4,
+        cur_selected_monitor: "".to_string(),
+        text_buffer: "".to_string(),
+        keycode: "".to_string(),
     };
        let app_result = app.run(&mut terminal);
 

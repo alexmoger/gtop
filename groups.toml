@@ -1,1 +1,5 @@
-groups = []
+[[groups]]
+name = "asd"
+length = "0"
+id = "1"
+monitor_names = []

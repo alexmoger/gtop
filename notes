@@ -1,9 +1,58 @@
 
+DONE
+
+changed how files are located to check if deffnm.mdp exists in aux 
+changed from using linux sh stuff to rust based method of accessing and reading files 
+removed dir size ( to add later)
+added new change group screen in monitor to assign created monitors to groups 
+chagned aroudn labels and general functionality to make more friendly and segmented 
+
+
+
+MAIN TO DO
+
+
+avg steps / hour + day and estimated finish time
+    add an extra thing to Jobs struct with an array of floats
+    createa  func to add a int to the array
+        max 10 points in array, if adding one more then delete the first added to keep max 10
+        each point = number of steps simulated since last check
+    get steps / hour = mean / N * some shit idk
+
+need to make it so that when doing the cur select monitor name when press g, select from the moniotrs on screen NOT from all the monioitrs since cur sel on a group2 screen can be diffeent to cur sel on group 1 or al or whatever....
+
+
+
+
+
+
 TO DO
 
-remove aux
+fix pressing enter on an empty monitor list crashing shit 1
 
-add more groups based off status 
+move delete monitors to monitors and delete delete.rs !!
+
+add delete all monitors in group
+
+add mouse control
+
+change write text screen thing to adda  thing based off text buffer ie if deleting group say DELETING GROUP? etc etc
+
+when renaming groups need to keep group order in list not delete old group then createa  new group
+
+theres some bug shit ont he group selection ie
+    1 - can select moniotrs not on group group screen (empty monitor but when press g it selects something)
+    2 - theres some out of index shit when moving up down and screen is small FIX
+
+clean uip the instructions on the bottom of the screen
+
+add unassigned group to list of groups when changing to unassign monitors from group 
+
+rolling average of steps + time per hour + estimated time to completion  
+
+clean up command snad add shit to help 
+
+remove aux
 
 fix being able to scroll thru more  monitors in groups 
 
@@ -23,6 +72,8 @@ add option to restart all in group or delete all in group
 
 move status bar to middle of monitor chunk 
 
+make the return_jobs_toml return_monitors_toml etc etc into constants instead of calling the function eveyr time
+
 make it so running gtop add automatically adds a minotr based off used defined settings
 
 add a batch multidir add setting where if run gtop create in a parent folder with many multidir it adds all sub child folders...
@@ -33,7 +84,7 @@ get stesp/hour sorted + graph (tricky)
 
 remove ssh address 
 
-
+re add some dir size or traj size stuff
 
 
 

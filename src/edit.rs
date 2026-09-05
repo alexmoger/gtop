@@ -16,6 +16,7 @@ pub fn edit_monitor(name: String, feature: String, new_entry: String) {
         "work_dir" => { monitor.work_dir = new_entry; }
         "deffnm" => {monitor.deffnm = new_entry; }
         "checkpoint_sub" => {monitor.checkpoint_sub = new_entry; }
+        "group" => {monitor.group_name = new_entry}
         _ => panic!("invalud feature name, pls enter {:?}", things_to_edit)
     }
     // check if new monitor has correct values (deffnm exists? pwd exists)

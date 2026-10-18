@@ -1,12 +1,11 @@
-use serde::{Serialize, Deserialize};
 use std::{fs, env};
 use std::path::Path;
 
 use crate::groups::{return_all_groups,check_if_group_name_taken, create_group};
-use crate::monitors::{Monitor, MonitorFile, return_all_monitors, return_monitors_toml};
+use crate::monitors::{Monitor, MonitorFile, return_all_monitors, return_monitors_toml, check_if_monitorname_taken};
 use crate::jobs::{Job, JobFile, Status, return_jobs_toml};
 use crate::get::update_monitor;
-use crate::settings::{Settings, load_settings};
+use crate::settings::{load_settings};
 
 // Create monitor function
 // takes four arguments, name for the monitor, the ssh address (usnm@host format), and working dir
@@ -14,10 +13,10 @@ pub fn create_monitor(name: &str, work_dir: &str, deffnm: &str, checkpoint_sub: 
     // if default parsed for each argument, assign values based off settings file
     let settings= load_settings();
     let n_monitors = return_all_monitors().len();
-    let name = match (name) { 
+    let name = match name { 
         "default" => { 
             let mut monitor_name_iterator = 0;
-            let mut monitor_name;
+            let monitor_name;
             loop {
                 let possible_name = format!("{}_{}", settings.default_monitorname, n_monitors + monitor_name_iterator);
                 if check_if_monitorname_taken(&possible_name) {
@@ -29,17 +28,17 @@ pub fn create_monitor(name: &str, work_dir: &str, deffnm: &str, checkpoint_sub: 
             }         
             monitor_name   
         } // if name == default, use defaultmonitorname_nmonitors  
-        _ => { if (check_if_monitorname_taken(name) == false) { name.to_string() } else { panic!("name taken"); } } // else return what the user wrote given that the name isnt already in monitors.toml 
+        _ => { if check_if_monitorname_taken(name) == false { name.to_string() } else { panic!("name taken"); } } // else return what the user wrote given that the name isnt already in monitors.toml 
      };
-     let work_dir = match(work_dir) {
+     let work_dir = match work_dir {
         "cur_dir" => env::current_dir().expect("cur_dir doesnt exist").display().to_string(),
         _ => work_dir.to_string(),
      };
-     let deffnm = match (deffnm) {
+     let deffnm = match deffnm {
         "default" => settings.default_deffnm,
         _ => deffnm.to_string()
      };
-     let checkpoint_sub = match (checkpoint_sub) {
+     let checkpoint_sub = match checkpoint_sub {
         "default" => settings.default_checkpointsub,
         _ => checkpoint_sub.to_string()
      };
@@ -52,10 +51,9 @@ pub fn create_monitor(name: &str, work_dir: &str, deffnm: &str, checkpoint_sub: 
 
 
      // add command needs an mdp in the directory (pwd/deffnm.mdp) to succesfully create a monitor 
-    let search_mdp_pattern: String = format!("{}/{}.mdp", work_dir, deffnm); // string containing workdir  AND CONTAINS DEFFNM.MDP !!!!
-    let search_tpr_pattern = format!("{}/{}.tpr", work_dir, deffnm);     // string containing workdir/deffnm*
-    println!("checking for {search_mdp_pattern}");
-    if test_local_address(&search_mdp_pattern) { // checks if work_dir exists
+    let search_log_pattern: String = format!("{}/{}.log", work_dir, deffnm);
+    println!("checking for {search_log_pattern}");
+    if test_local_address(&search_log_pattern) { // checks if work_dir exists
         println!("validation passed");
         let new_monitor = Monitor { // creates the monitor to add using the Monitor struct
             name: name.to_string(),
@@ -73,10 +71,10 @@ pub fn create_monitor(name: &str, work_dir: &str, deffnm: &str, checkpoint_sub: 
 pub fn create_monitors_from_parent(children: Vec<String>, group: &str, name: &str, work_dir: &str, deffnm: &str, checkpoint_sub: &str) {
     // check if group exists, if not create a new group using group_i where i  = Ngroups, if it does then set group to group
     let n_groups = return_all_groups().len();
-    let group = match (group) {
+    let group = match group {
     "default" => { // if left unassigned then create a new group
         let mut group_name_iterator = 0;
-        let mut group_name;
+        let group_name;
         loop {
             let possible_name = format!("group_{}", n_groups + group_name_iterator);
             if check_if_group_name_taken(&possible_name) {
@@ -88,27 +86,26 @@ pub fn create_monitors_from_parent(children: Vec<String>, group: &str, name: &st
         }         
         group_name   
     },
-    _ => if (check_if_group_name_taken(group) == false) { group.to_string() } else { panic!("group name already taken");}
+    _ => if check_if_group_name_taken(group) == false { group.to_string() } else { panic!("group name already taken");}
     };
     // create group
     create_group(&group);
 
     // if default parsed for each argument, assign values based off settings file
     let settings= load_settings();
-    let n_monitors = return_all_monitors().len();
-    let name = match (name) { 
+    let name = match name { 
         "default" => format!("{}_monitor", group).to_string(), // if name == default, use defaultmonitorname_nmonitors  
-        _ => { if (check_if_monitorname_taken(name) == false) { name.to_string() } else { panic!("name taken"); } } // else return what the user wrote given that the name isnt already in monitors.toml 
+        _ => { if check_if_monitorname_taken(name) == false { name.to_string() } else { panic!("name taken"); } } // else return what the user wrote given that the name isnt already in monitors.toml 
      };
-     let work_dir = match(work_dir) {
+     let work_dir = match work_dir {
         "cur_dir" => env::current_dir().expect("cur_dir doesnt exist").display().to_string(),
         _ => work_dir.to_string(),
      };
-     let deffnm = match (deffnm) {
+     let deffnm = match deffnm {
         "default" => settings.default_deffnm,
         _ => deffnm.to_string()
      };
-     let checkpoint_sub = match (checkpoint_sub) {
+     let checkpoint_sub = match checkpoint_sub {
         "default" => settings.default_checkpointsub,
         _ => checkpoint_sub.to_string()
      };
@@ -129,9 +126,9 @@ pub fn create_monitors_from_parent(children: Vec<String>, group: &str, name: &st
         println!("---- Checkpoint Submission Script: {}", checkpoint_sub);
 
         // add command needs an mdp in the directory (pwd/deffnm.mdp) to succesfully create a monitor 
-        let search_mdp_pattern: String = format!("{}/{}/{}.mdp", work_dir, child, deffnm); // string containing workdir  AND CONTAINS DEFFNM.MDP !!!!
-        println!("checking for {search_mdp_pattern}");
-        if test_local_address(&search_mdp_pattern) { // checks if work_dir exists
+        let search_log_pattern: String = format!("{}/{}/{}.log", work_dir, child, deffnm);
+        println!("checking for {search_log_pattern}");
+        if test_local_address(&search_log_pattern) { // checks if work_dir exists
             println!("validation passed");
             let new_monitor = Monitor { // creates the monitor to add using the Monitor struct
                 name: child_name.to_string(),
@@ -148,24 +145,6 @@ pub fn create_monitors_from_parent(children: Vec<String>, group: &str, name: &st
         } else { println!("no mdp found in directory...")} 
         iterator += 1;
      }
-}
-
-// Checks if the monitor name is already taken (in monitors.toml), returns true if taken, false if not
-pub fn check_if_monitorname_taken(name: &str) -> bool {
-    let contents = match fs::read_to_string(return_monitors_toml()) { // put the the fs read function thru a switch statement as an io check...
-        Ok(content) => content, // if can read, set contets as contents, 
-        Err(_) => return false, // f the file doesn't exist, return false, end early
-    };
-    let data: MonitorFile = match toml::from_str(&contents) { // parse the contents of monitors.toml into a MonitorFile struct
-        Ok(data) => data, // if can parse, set data as the parsed data
-        Err(_) => return false, // if can't parse, return false, end early
-    };
-    for monitor in data.monitors { // iterate over the monitors in the MonitorFile struct
-        if monitor.name == name { // if the monitor name matches the name passed to the function
-            return true; // return true, end early
-        }
-    }
-    return false;
 }
 
 // Saves the monitor credentials to monitors.toml
@@ -195,6 +174,9 @@ pub fn save_job_credentials(name: &str,) {
         last_updated: "0".to_string(),
         last_step: "0".to_string(),
         status: Status::Waiting,
+        nmpi: "0".to_string(),
+        nomp: "0".to_string(),
+        gpu_enbaled: "0".to_string(),
     };
 
     let mut data = match fs::read_to_string(return_jobs_toml()) {

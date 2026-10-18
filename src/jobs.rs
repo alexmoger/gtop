@@ -20,6 +20,9 @@ pub struct Job {
     pub last_updated: String,
     pub last_step: String,
     pub status: Status, // true = running  
+    pub nmpi: String,
+    pub nomp: String,
+    pub gpu_enbaled : String,
 }
 // for saving multiple jobs to toml
 #[derive(Serialize, Deserialize, Default, Clone)]

@@ -8,8 +8,61 @@ added new change group screen in monitor to assign created monitors to groups
 chagned aroudn labels and general functionality to make more friendly and segmented 
 
 
+SECONDARY STUFF TO OD
+
+ui overhall
+code cleanup
+job progress and stuff 
+
 
 MAIN TO DO
+TOP RIGHT ON VIEW 1 = TOTAL MPI / OMP ( TOTAL CPUS USED )
+do a bar of const lenght and split it into N chunks where n is number of monitors where each chunk size
+    relates to number of cpus used by each monitor 
+plus should probablty have a thing saying "sim closest to finishing : JOBNAME"
+
+split right side view pie chart and upper right bs into looking at groups or not 
+
+CHANGE NAME FROM GTOP TO SOMETHING IDK
+remove .mdp stuff and get all data from .log 
+do settings
+do run just gtop to open monitor 
+remove all cli stuff and just have gtop (opens monitor), gtop add (single monitor), gtop parent (add parent folder, creates new group and adds all child monitors in)
+DATA TO SHOW
+    total steps + dt
+    current completion %
+    OMP/MPI threads, ncpus
+make gtop create on it sown run an interactive job but can use -flags
+change view2 stuff to show on view one top right 
+
+UI CHANGES
+======================================================================
+   < GROUP >    I
+=================
+asdasdasd (W)   I
+dasdasdas (R)   I
+                I
+                I
+                I
+                I
+                I
+                I
+                I
+=======================================================================
+
+left rows = individual monitors in group
+right stuff = pertinent to overall group performance 
+
+possible cool shit to add
+    pi chart showing % running paused finished etc etc 
+    top right some cool ui thing where its like bubbling or steaming if lots running then calm if nothing
+        maybe like little gas molecules bouncing around for each job 
+
+
+
+IMPORTANT INFO
+job completion (maybe estimated time)
+
 
 
 avg steps / hour + day and estimated finish time

@@ -1,39 +1,38 @@
 
 // tui stuff
-use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind};
+use crossterm::event::{ KeyCode, KeyEventKind};
 use ratatui::{
     symbols,
     buffer::Buffer,
     layout::Rect,
-    style::{Stylize, Style, Color, Modifier},
+    style::{Stylize, Style, Color},
     symbols::border,
     text::{Line, Text, Span},
-    widgets::{Block, Paragraph, Widget, Gauge, BorderType, LineGauge, Chart, Dataset, Axis, GraphType, Padding},
+    widgets::{Block, Paragraph, Widget, BorderType, LineGauge, Chart, Dataset, Axis, GraphType, Padding},
     DefaultTerminal, Frame,
     layout::{Constraint, Direction, Layout},
 };
-use std::{fmt::format, io};
+use tui_piechart::{PieChart, PieSlice};
+use tui_piechart::symbols as pie_symbols;
+use std::{io};
 use std::time::{Duration, Instant};
 
 use crate::{groups::{Group, delete_group}, monitors::Monitor};
-use crate::monitors::{return_all_monitors, find_monitor, add_monitor_to_group};
-use crate::jobs::{Job, JobFile, Status, find_job, return_all_jobs};
+use crate::monitors::{return_all_monitors, find_monitor, add_monitor_to_group, delete_monitor};
+use crate::jobs::{Job, Status, find_job};
 use crate::get::update_monitor;
-use crate::delete::delete_monitor;
 use crate::groups::{return_all_groups, return_monitors_in_group, rename_group, create_group};
-use crate::settings::{load_settings, Settings};
 
 #[derive(Debug, Default)]
 pub enum CurrentScreen {
     #[default]
-    View1,
-    View2,
-    Delete,
-    Restart,
-    Add,
-    ChangeGroup,
-    WriteText,
-    Settings,
+    View1, // main monitor screen, first thing you see when running gtop
+    View2, // secondary monitor screen for individual jobs
+    Delete, // for deleting jobs or groups
+    Restart, // for restarting individual jobs
+    ChangeGroup, // for changing job groups
+    WriteText, // for writing text 
+    Settings, // settings screen for viewing and changing user defined settings 
 }
 
 pub struct App {
@@ -161,7 +160,6 @@ impl App {
                         _ => {},
                     }   
                 }    
-                //KeyCode::Char('a') => self.cur_screen = CurrentScreen::Add,
                 KeyCode::Char('y') => {
                     match self.cur_screen {
                         CurrentScreen::Delete => {
@@ -258,7 +256,6 @@ impl App {
                         CurrentScreen::View2 => self.cur_screen = CurrentScreen::View1,
                         CurrentScreen::Restart => self.cur_screen = CurrentScreen::View1,
                         CurrentScreen::Delete => self.cur_screen = CurrentScreen::View1,
-                        CurrentScreen::Add => self.cur_screen = CurrentScreen::View1,
                         CurrentScreen::ChangeGroup => {self.cur_screen = CurrentScreen::View1; self.cur_selection = 0; },
                         CurrentScreen::Settings => self.cur_screen = CurrentScreen::View1,
                         _ => {}
@@ -329,21 +326,15 @@ impl App {
     }
 }
 
-// MAIN SCREEN CONTIANING LIST OF MONITORS + BASIC INFO
-fn screen_view1(area: Rect, buf: &mut Buffer, cur_sel : &usize, cur_offset: &usize, cur_group_id: &usize) { // 'static defines the lifetime ie lives for the entire program duration
-    let monitors: Vec<Monitor> = return_all_monitors(); // gets all monitors from monitor.toml
-    let jobs: Vec<Job> = return_all_jobs();
-    // this stuff is for etting all monitors with the current group selection
-    let monitors_in_group = return_monitors_in_group(cur_group_id);
-    let jobs_in_group : Vec<Job> = monitors_in_group // gt all jobs corresponding to monitors in gorup
+fn screen_view1(area: Rect, buf: &mut Buffer, cur_sel : &usize, cur_offset: &usize, cur_group_id: &usize) {
+    let monitors = return_monitors_in_group(cur_group_id); // get all monitors in cur selected group
+    let jobs : Vec<Job> = monitors // for each monitor in monitors_in_group, get corresponding job (monitors+jobs stored separately)
         .iter()
         .map(|m| find_job(m.name.clone()))
         .collect();
-    let monitors = monitors_in_group; // redefine monitors here 
-    let jobs = jobs_in_group; //redefine jobs here    
 
     // RENDER STUFF
-    let monitor_chunk_size: u16 = 4; // number of lines for each monitor
+    let monitor_chunk_size: u16 = 1; // number of lines for each monitor
     let max_monitors_on_screen = (area.height / monitor_chunk_size) as usize; // gets max number of chunks that can be displayed
     let n_monitors = monitors.len(); // gets number of monitors 
     let n_monitors_to_display = if n_monitors < max_monitors_on_screen  // set number of monitors rendered as nmonitors or nmaxmonitorsthat can be rendered
@@ -352,7 +343,6 @@ fn screen_view1(area: Rect, buf: &mut Buffer, cur_sel : &usize, cur_offset: &usi
     } else {
         max_monitors_on_screen
     }; // sets how many monitors are displayed, only so many are allowed (height/lines per monitor)
-
 
     let first_monitor_to_render: usize = *cur_offset;
     let last_monitor_to_render = (first_monitor_to_render + (n_monitors_to_display)).min(n_monitors);
@@ -377,15 +367,18 @@ fn screen_view1(area: Rect, buf: &mut Buffer, cur_sel : &usize, cur_offset: &usi
         .iter()
         .map(|j| j.max_step.clone())
         .collect();
-    let monitor_dt: Vec<String> = jobs_to_render
+    //let monitor_dt: Vec<String> = jobs_to_render
+    //    .iter()
+    //    .map(|j| j.time_step.clone())
+    //    .collect();
+    let monitor_nmpi: Vec<&str> = jobs_to_render
         .iter()
-        .map(|j| j.time_step.clone())
+        .map(|j| j.nmpi.as_str())
         .collect();
-    let monitor_pwd: Vec<&str> = monitors_to_render // i have no fking idea why changing all monitor stff to &str instead of String works for the print stuff ......
+    let monitor_nomp: Vec<&str> = jobs_to_render
         .iter()
-        .map(|m| m.work_dir.as_str())
+        .map(|j| j.nomp.as_str())
         .collect();
-
 
     // creates number of constraints for each monitor chunk (y size)
     let constraints = (0..n_monitors_to_display)  // iterates between 0->nchunks
@@ -396,23 +389,39 @@ fn screen_view1(area: Rect, buf: &mut Buffer, cur_sel : &usize, cur_offset: &usi
         .direction(Direction::Vertical)
         .constraints(constraints.clone())
         .split(area); 
-    // creates each progress bar chunk   
-    let split_screen_horizontal_chunks = Layout::default() // splits the screen into two segments horizontally by 50% ( FOR PROGRESS BAR, 1ST PART)
+    let split_screen_horizontal = Layout::default() // splits the screen into two left and right segments 
+        .direction(Direction::Horizontal)
+        .constraints([
+            Constraint::Percentage(45), // left side for monitor list + progress
+            Constraint::Percentage(5), // for widgets
+            Constraint::Percentage(45), // for widgets
+            Constraint::Percentage(5), // for widgets
+        ])
+        .split(area);
+    let split_screen_left = Layout::default()
         .direction(Direction::Horizontal)
         .constraints([
             Constraint::Percentage(50),
             Constraint::Percentage(50),
         ])
-        .split(area);
-    let progressbar_chunks = Layout::default()
+        .split(split_screen_horizontal[0]);
+    let split_upper_lower_right_chunks = Layout::default()
         .direction(Direction::Vertical)
-        .constraints(constraints.clone())
-        .split(split_screen_horizontal_chunks[1]); //  0 = left chunk 1 = right chunk
+        .constraints([
+            Constraint::Percentage(50),
+            Constraint::Percentage(40),
+            Constraint::Percentage(10),
+        ])
+        .split(split_screen_horizontal[2]);
+    let progressbar_chunks = Layout::default()
+           .direction(Direction::Vertical)
+          .constraints(constraints.clone())
+         .split(split_screen_left[1]); //  0 = left chunk 1 = right chunk
 
     // border for monitor chunks
-    let block = Block::bordered() // frame around area
-        .title("")
-        .border_set(border::THICK);
+    //let block = Block::bordered() // frame around area
+    //    .title("")
+    //    .border_set(border::THICK);
 
     // renders all chunks -- content of each chunk in the paragraph
     for (i, chunk) in monitor_chunks.iter().enumerate() {
@@ -430,37 +439,44 @@ fn screen_view1(area: Rect, buf: &mut Buffer, cur_sel : &usize, cur_offset: &usi
         };
         
         let completion_percentage: u16;
-        let cur_time: f32;
-        let max_time: f32;
+        //let cur_time: f32;
+        //let max_time: f32;
         // graph prog bar
         if graph_prog_bar {
             completion_percentage = (monitor_curstep[i].parse::<f32>().unwrap() / monitor_maxstep[i].parse::<f32>().unwrap() * 100.0) as u16;
-            cur_time = (monitor_curstep[i].parse::<f32>().unwrap() * monitor_dt[i].parse::<f32>().unwrap()) / 1000000.0; // divide by 1mil to get microseconds
-            max_time = (monitor_maxstep[i].parse::<f32>().unwrap() * monitor_dt[i].parse::<f32>().unwrap()) / 1000000.0;
+            //cur_time = (monitor_curstep[i].parse::<f32>().unwrap() * monitor_dt[i].parse::<f32>().unwrap()) / 1000000.0; // divide by 1mil to get microseconds
+            //max_time = (monitor_maxstep[i].parse::<f32>().unwrap() * monitor_dt[i].parse::<f32>().unwrap()) / 1000000.0;
         } else {
             completion_percentage = 0 as u16;
-            cur_time = 0 as f32; 
-            max_time = 0 as f32;
+            //cur_time = 0 as f32; 
+            //max_time = 0 as f32;
         }
+
+        let cur_status_label = match monitor_status[i] {
+            Status::Waiting => {"W"}
+            Status::Running => {"R"}
+            Status::Paused => {"P"}
+            Status::Finished => {"F"}
+        };
 
         // draws each monitor 
         if first_monitor_to_render + i == *cur_sel as usize { // change this to just change the colour x)
             Paragraph::new(Text::from(vec![
-                Line::from(monitor_names[i]).bold().blue(),
+                Line::from(format!("{} ({})", monitor_names[i], cur_status_label)).bold().blue(),
                 //Line::from(monitor_pwd[i]).bold(),
                 //Line::from(""),
                 Line::from(status).bold(),
             ]))
-            .block(block.clone())
+            //.block(block.clone())
             .render(*chunk, buf);
         } else {
             Paragraph::new(Text::from(vec![
-                Line::from(monitor_names[i]).red(),
+                Line::from(format!("{} ({})", monitor_names[i], cur_status_label)).red(),
                 //Line::from(monitor_pwd[i]).italic(),
                 //Line::from(""),
                 Line::from(status),
             ]))
-            .block(block.clone())
+            //.block(block.clone())
             .render(*chunk, buf);
         }
         // progress bar
@@ -478,15 +494,56 @@ fn screen_view1(area: Rect, buf: &mut Buffer, cur_sel : &usize, cur_offset: &usi
             .render(progressbar_chunks[i], buf);
         */
         LineGauge::default()
-            .block(block.clone())
+            //.block(block.clone())
             .filled_style(Style::default().fg(Color::Magenta))
             .unfilled_style(Style::default().fg(Color::DarkGray))
             .filled_symbol("=") // or NORMAL, DOUBLE, ROUNDED
             .unfilled_symbol("-")
             .ratio(completion_percentage as f64 / 100.0)
-            .label(format!("{:.2} / {:.2}", cur_time, max_time))
+            //.label(format!("{:.2} / {:.2}", cur_time, max_time))
             .render(progressbar_chunks[i], buf);
     }
+
+    // right frames
+    // lower right pie chart
+    // https://lib.rs/crates/tui-piechart 
+    let mut status_count = [0.0,0.0,0.0,0.0]; // W,R,P,F
+    for job in jobs.clone() { // idk how to do this better x-x
+        match job.status {
+            Status::Waiting => {status_count[0] = status_count[0]+1.0;}
+            Status::Running => {status_count[1] = status_count[1]+1.0;}
+            Status::Paused => {status_count[2] = status_count[2]+1.0;}
+            Status::Finished => {status_count[3] = status_count[3]+1.0;}
+        }
+    }
+    let slices = vec![
+        PieSlice::new("Waiting", status_count[0], Color::Rgb(139, 92, 148)),
+        PieSlice::new("Running", status_count[1], Color::Rgb(125, 19, 145)),
+        PieSlice::new("Paused", status_count[2], Color::Rgb(135, 38, 91)),
+        PieSlice::new("Finished", status_count[3], Color::Rgb(173, 92, 136)),
+    ];
+    let piechart = PieChart::new(slices)
+        .show_legend(true)
+        .show_percentages(true)
+        .pie_char(pie_symbols::PIE_CHAR_SQUARE)
+        //.block(Block::bordered())
+        .high_resolution(false); // overrides pie_char x_X
+    piechart.render(split_upper_lower_right_chunks[1], buf);
+
+
+    // upper right 
+    let mut sum_proc = 0;
+    for i in 0..monitor_nmpi.len() {
+        let m = monitor_nmpi[i].parse().unwrap_or(0);
+        let o = monitor_nomp[i].parse().unwrap_or(0);
+         sum_proc = sum_proc + (m*o);
+    }
+    Paragraph::new(Text::from(vec![
+            Line::from(format!("Total threads in use: {}", sum_proc)).centered(),
+        ]))
+        .block(Block::bordered())
+        .centered()
+        .render(split_upper_lower_right_chunks[0], buf);
 }
 fn screen_view2(area: Rect, buf: &mut Buffer, cur_monitor_name: &str) { // 'static defines the lifetime ie lives for the entire program duration
     // get stuff to display
@@ -539,6 +596,8 @@ fn screen_view2(area: Rect, buf: &mut Buffer, cur_monitor_name: &str) { // 'stat
                 Line::from(format!("deffnm: {}", monitor.deffnm)).centered(),
                 Line::from(format!("dir size: wip",)).centered(),
                 Line::from(format!("cpi: {}", monitor.checkpoint_sub)).centered(),
+                Line::from(format!("MPI processed: {}", job.nmpi)).centered(),
+                Line::from(format!("OMP threads per MPI process: {}", job.nomp)).centered()
             ]))
             .block(block.clone())
             .centered()
@@ -593,12 +652,7 @@ fn screen_restart(area: Rect, buf: &mut Buffer, cur_sel: &usize) { // 'static de
         .centered()
         .render(area,buf);
 }
-fn screen_add(area: Rect, buf: &mut Buffer) { // 'static defines the lifetime ie lives for the entire program duration
-    Paragraph::new("Add")
-        .centered()
-        .render(area,buf)
-}
-fn screen_delete(area: Rect, buf: &mut Buffer, cur_sel: &usize) { // displays the delete screen for the selected monitor -- functionality handled in key press event above
+fn screen_delete(area: Rect, buf: &mut Buffer) { // displays the delete screen for the selected monitor -- functionality handled in key press event above
     //let monitors = return_all_monitors();
     // get cur sel monitor
     //let cur_monitor_index = *cur_sel;
@@ -672,7 +726,6 @@ fn screen_writetext(area:Rect, buf:&mut Buffer, text: &str) {
     .render(area, buf);
 }
 fn screen_settings(area:Rect, buf:&mut Buffer, cur_sel: &usize) {
-    let settings = load_settings(); // gets a vec of all groups in groups.toml
     let setting_names = ["default deffnm", "default checkpoint submission script", "default monitor name"];
 
     let constraints = (0..setting_names.len()) // creates constraints for each displayed group y size
@@ -682,11 +735,6 @@ fn screen_settings(area:Rect, buf:&mut Buffer, cur_sel: &usize) {
         .direction(Direction::Vertical)
         .constraints(constraints.clone())
         .split(area);
-
-    let block = Block::bordered() // for frame around border not each setting 
-        .title("")
-        .border_set(border::THICK)
-        .padding(Padding::uniform(1));
 
     for i in 0..setting_names.len() {
         if &i == cur_sel {
@@ -770,15 +818,14 @@ impl Widget for &App { // uses reference since render doesnt edit anything
             };
 
             let groups = return_all_groups();
-            let mut group_name = "";
-            match self.cur_group_id {
-                0 => group_name = "Finished",
-                1 => group_name = "Paused", 
-                2 => group_name = "Running",
-                3 => group_name = "Unassigned", // unassigned groups have the name ""
-                4 => group_name = "All", 
-                _ => group_name = &groups[self.cur_group_id - 5].name,
-            }
+            let group_name = match self.cur_group_id {
+                0 => "Finished",
+                1 =>  "Paused", 
+                2 =>  "Running",
+                3 =>  "Unassigned", // unassigned groups have the name ""
+                4 =>  "All", 
+                _ =>  &groups[self.cur_group_id - 5].name,
+            };
             // sets frame around tui 
             let block = Block::bordered() // frame around area
                 .title(Line::from(" == gtop == ").centered())
@@ -796,8 +843,7 @@ impl Widget for &App { // uses reference since render doesnt edit anything
                 CurrentScreen::View1 => screen_view1(inner_area, buf, &self.cur_selection, &self.offset, &self.cur_group_id),
                 CurrentScreen::View2 => screen_view2(inner_area, buf, &self.cur_selected_monitor),
                 CurrentScreen::Restart => screen_restart(inner_area, buf, &self.cur_selection),
-                CurrentScreen::Delete => screen_delete(inner_area, buf, &self.cur_selection),
-                CurrentScreen::Add => screen_add(inner_area, buf),
+                CurrentScreen::Delete => screen_delete(inner_area, buf),
                 CurrentScreen::ChangeGroup => screen_changegroup(inner_area, buf, &self.cur_selection, &self.offset),
                 CurrentScreen::WriteText => screen_writetext(inner_area, buf, &self.text_buffer),
                 CurrentScreen::Settings => screen_settings(inner_area, buf, &self.cur_selection),

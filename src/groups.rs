@@ -107,15 +107,14 @@ pub fn return_monitors_in_group(cur_group_id: &usize) -> Vec<Monitor> { // takes
     let monitors: Vec<Monitor> = return_all_monitors(); // gets all monitors from monitor.toml
     let jobs: Vec<Job> = return_all_jobs();
     let groups: Vec<crate::groups::Group> = return_all_groups(); // gets all groups in groups.toml
-    let mut cur_group_name = ""; 
-    match cur_group_id { // sets group name
-        0 => cur_group_name = "Finished",
-        1 => cur_group_name = "Paused", 
-        2 => cur_group_name = "Running",
-        3 => cur_group_name = "", // unassigned groups have the name ""
-        4 => cur_group_name = "All", 
-        _ => cur_group_name = &groups[cur_group_id - 5].name, // custom group names start from id 5 upwards
-    }
+    let cur_group_name: &str = match cur_group_id { // sets group name
+        0 => "Finished",
+        1 => "Paused", 
+        2 => "Running",
+        3 => "", // unassigned groups have the name ""
+        4 => "All", 
+        _ => &groups[cur_group_id - 5].name, // custom group names start from id 5 upwards
+    };
     let mut monitors_in_group = Vec::<Monitor>::new(); // htis new shit is needed for below push to work 
     match cur_group_name {
         "Finished" => {
